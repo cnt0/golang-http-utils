@@ -26,3 +26,32 @@ func (i *IfModifiedSince) Handler(next http.Handler) http.Handler {
 func NewIfModifiedSince() IfModifiedSince {
 	return IfModifiedSince{t: time.Now()}
 }
+
+// WithTimeout middleware implements a timeout for http request handlers
+type WithTimeout struct {
+	d time.Duration
+}
+
+// NewWithTimeout is a constructor for WithTimeout struct
+func NewWithTimeout(d time.Duration) WithTimeout {
+	return WithTimeout{d: d}
+}
+
+// Handler implements a timeout for http request handlers
+func (wt *WithTimeout) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ok := make(chan bool)
+
+		go func(ok chan bool, wt *WithTimeout) {
+			next.ServeHTTP(w, r)
+			ok <- true
+		}(ok, wt)
+
+		select {
+		case <-ok:
+			return
+		case <-time.After(wt.d):
+			return
+		}
+	})
+}
