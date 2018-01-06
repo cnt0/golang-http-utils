@@ -1,4 +1,3 @@
-# if-modified-since
-if-modified-since http middleware for golang standart library
+# golang HTTP utils
 
 (just read the source, it's tiny lol)
