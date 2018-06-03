@@ -1,11 +1,10 @@
 package utils
 
 import (
-	"net"
 	"net/http"
-	"os"
-	"strconv"
 	"sync"
+
+	"github.com/coreos/go-systemd/activation"
 )
 
 // defined in src/activate/activate.c from systemd source tree
@@ -36,14 +35,16 @@ func ParallelRequests(reqs []*http.Request, client *http.Client) []*HTTPResponse
 // ListenAndServeSA listens on unix socket provided by systemd socket activation.
 // If there is no socket activation, it will act just like http.ListenAndServe
 func ListenAndServeSA(addr string, handler http.Handler) error {
-	if os.Getenv("LISTEN_PID") == strconv.Itoa(os.Getpid()) {
-		l, err := net.FileListener(os.NewFile(sdListenFDsStart, "socket"))
-		if err != nil {
-			return err
-		}
-		if err := http.Serve(l, handler); err != nil {
-			return err
-		}
+	listeners, err := activation.Listeners()
+	if err != nil {
+		return http.ListenAndServe(addr, handler)
 	}
-	return http.ListenAndServe(addr, handler)
+
+	if len(listeners) != 1 {
+		return http.ListenAndServe(addr, handler)
+	}
+	if err := http.Serve(listeners[0], handler); err != nil {
+		return err
+	}
+	return nil
 }
